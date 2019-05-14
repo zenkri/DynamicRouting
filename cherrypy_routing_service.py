@@ -315,9 +315,7 @@ class webService(object):
                                 battery_percent=battery_percentage)
 
     def POST(self, *uri):
-        inputtext = json.loads(cherrypy.request.body.read())
-        operation = inputtext["username"]
-        nbrs = (inputtext["password"])
+        pass
 
     def PUT(self):
         pass
