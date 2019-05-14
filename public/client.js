@@ -18,6 +18,11 @@ $(function() {
     updateMarker(loc, location.bearing);
   });
 
+  COBI.battery.state.subscribe(function(value, timestamp){
+    console.log('BATTERY')
+    console.log(value)
+  })
+
 
   /**
    * 
@@ -112,6 +117,8 @@ $(function() {
 
 
 // Define id, name, events, formatting functions, units and default value for each item
+
+/*
 var definitions = [
   {
     id: 'speed',
@@ -195,3 +202,4 @@ var definitions = [
     defaultValue: '-'
   }
 ];
+*/

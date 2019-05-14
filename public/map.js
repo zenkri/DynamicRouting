@@ -23,6 +23,7 @@ function initMap() {
 
   // HERE for geocoding
   const options = {
+    // No payment info, if you take it, do what you want ;-)
     app_id: 'iGrkm2eWsMPxtak51DvP',
     app_code: 'ZstERggksSlagIeBdYr11g'
   }
@@ -75,7 +76,6 @@ function geocode(input) {
 function updateMarker(location, bearing) {
 
   positionMarker.setLatLng(location);
-  console.log(bearing);
   positionMarker.setRotationAngle(bearing);
   map.setView(location, 20);
 
@@ -86,10 +86,23 @@ function generateRoute(start, dest) {
   start = start.lng + ',' + start.lat
   dest = dest.lng + ',' + dest.lat
 
+  const body = {
+    "coordinates": [
+      [8.681495, 49.41461],
+      [8.686507, 49.41943],
+      [8.687872, 49.420318]
+    ],
+    "elevation": "true",
+    "extra_info": ["surface"]
+  };
+
+
+
   jQuery.ajax({
       url: "https://api.openrouteservice.org/v2/directions/cycling-electric/",
       type: "GET",
       data: {
+        // No payment info, if you take it, do what you want ;-)
         "api_key": "5b3ce3597851110001cf624832a8bcb522f2464c9e4167d598d4bc15",
         "start": start,
         "end": dest
@@ -119,6 +132,13 @@ function generateRoute(start, dest) {
         $('#insufficient_power').show();
         // $('#spinner').hide();
 
+
+
+        closestStation = L.geoJSON(altRoute.closest_station)
+        altRoute = L.geoJSON(altRoute.features[0]);
+
+        console.log(closestStation);
+        console.log(altRoute);
 
 
       } else {
