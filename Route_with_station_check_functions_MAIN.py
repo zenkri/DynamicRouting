@@ -25,7 +25,7 @@ def fetch_dummy_idx(min_val,max_val):
 # elevation- move towards lower elevation to save energy if required.
 def fetch_dummy_radius_and_way_point_shift(min_val=0,max_val=500):
     dummy_radius = random.randrange(min_val,max_val)
-    dummy_way_point_shift = random.randrange(-2, +2)
+    dummy_way_point_shift = random.randrange(-1, +1)
     return dummy_radius,dummy_way_point_shift
 
 #Function to return a list of fuel stations in geoJSON format around a
@@ -45,7 +45,7 @@ def get_stations_around_point(geojson_value,
             "geometry":{"geojson": geojson_value,"buffer": buffer_value},
             "filters" :{"category_ids": [596]},"sortby": "distance"}
 
-    print("body:",body)
+    #print("body:",body)
 
     headers = {
         'Accept'       : 'application/json, application/geo+json, '
@@ -59,9 +59,9 @@ def get_stations_around_point(geojson_value,
     #print(call.json())
     response_dump = json.dumps(call.json())
     response = json.loads(response_dump)
-    print(response)
+    #print(response)
     station_details="NO_DATA"
-    if(response=="{'error_message': 500}"):
+    if(call.status_code!=200):
         station_details = "NO_DATA"
     elif response['features']:
         station_details = json.dumps(response)
@@ -193,70 +193,98 @@ dest_uphill_lat = "47.17349788688307"
 dest_uphill_lon = "7.268998271621172"
 origin_uphill_ls = "[47.16757543377595,7.262282020247881]"
 dest_uphill_ls = "[47.17349788688307,7.268998271621172]"
-way_point_list = [geo_point_formatter_for_HERE_API(origin_lat,origin_lon),
-                  geo_point_formatter_for_HERE_API(dest_lat,dest_lon)]
 
+def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
+                     dest_lat="52.541439",dest_lon="13.421164",
+                     battery_level=40):
+    way_point_list = [geo_point_formatter_for_HERE_API(origin_lat, origin_lon),
+                      geo_point_formatter_for_HERE_API(dest_lat, dest_lon)]
 
-#Function call to get a route for given origin and dest
-#No of routes can potentially be increased using alternative routes param
-#Result is given as a list of list of GeoJSON points as returntype is "point"
-way_point_lists_list_of_points = \
-    get_route_distance_time_elevation(
-        way_point_list, elevation_flag="false",alternative_routes_value=1,
-            return_type="point")
+    # Function call to get a route for given origin and dest
+    # No of routes can potentially be increased using alternative routes param
+    # Result is given as a list of list of GeoJSON points as returntype is
+    # "point"
+    way_point_lists_list_of_points = \
+        get_route_distance_time_elevation(
+                way_point_list, elevation_flag="false",
+                alternative_routes_value=1,
+                return_type="point")
 
-#To fetch the first route in the list
-way_point_list_first_route = way_point_lists_list_of_points[0]
+    # To fetch the first route in the list
+    way_point_list_first_route = way_point_lists_list_of_points[0]
 
-way_point_list_length = len(way_point_list_first_route)
+    way_point_list_length = len(way_point_list_first_route)
 
-#fetching dummy waypoint index at which stations have to be searched and the
-# radius to be used
-search_way_point_index = fetch_dummy_idx(0,way_point_list_length)
+    ########################################################################
+    # REMOVE DUMMY FUNCTIONS AND USE ACTUAL FUNCTIONS
+    # fetching dummy waypoint index at which stations have to be searched and
+    # the radius to be used
+    # Actual function would need, route with origin,dest and waypoints and
+    # battery level to be passed
+    search_way_point_index = fetch_dummy_idx(way_point_list_length - 1,
+                                             way_point_list_length)
 
-search_radius,way_point_shift = fetch_dummy_radius_and_way_point_shift(1500,
-                                                                       2000)
+    search_radius, way_point_shift = fetch_dummy_radius_and_way_point_shift(
+        1800,
+        2000)
+    ########################################################################
+    new_idx = search_way_point_index + way_point_shift
 
-new_idx = search_way_point_index+way_point_shift
+    if (not (0 <= new_idx <= way_point_list_length)):
+        new_idx = search_way_point_index
+    closest_stations = "NO_DATA"
+    while (closest_stations == "NO_DATA"):
+        # Search for fuel stations around the selected waypoint
+        closest_stations = get_stations_around_point(
+                geojson_value=way_point_list_first_route[new_idx],
+                buffer_value=search_radius)
+        # If NO_DATA stations available for current way point need to go to next point
+        if (closest_stations == "NO_DATA"):
+            print("NEED to move to next waypoint")
+            if (new_idx > 0):
+                new_idx = new_idx - 1
+            else:
+                print("UNABLE TO FIND STATION en ROUTE AND TRIP NOT POSSIBLE "
+                      "WITHOUT CHARGING")
+                sys.exit(1)
+            if (search_radius <= 1000):
+                search_radius = search_radius * 2
 
-if(not(0 <= new_idx <= way_point_list_length)):
-    new_idx = search_way_point_index
-#Search for fuel stations around the selected waypoint
-closest_stations = get_stations_around_point(
-        geojson_value=way_point_list_first_route[new_idx],buffer_value=search_radius)
-#If no data stations available for current way point need to go to next point
-if (closest_stations == "NO_DATA"):
-    print("NEED NEXT WP")
-    sys.exit(0)
+    # Simulation of user choosing a station
 
+    closest_stations = json.loads(closest_stations)
+    ########################################################################
+    # REMOVE DUMMY AND REPLACE WITH ACTUAL FUNCTION
+    # Function for user to choose fuel/recharge station
+    chosen_closest_station_idx = fetch_dummy_idx(0, len(closest_stations[
+                                                            'features']))
+    closest_station = closest_stations['features'][chosen_closest_station_idx]
+    ########################################################################
+    # print("closest_station:",closest_station)
 
+    closest_station_HERE_format = geo_point_formatter_for_HERE_API(
+            closest_station['geometry']['coordinates'][1],
+            closest_station['geometry']['coordinates'][0])
+    # New routes calculated by using the chosen station as a waypoint
+    way_point_list_new = [way_point_list[0], closest_station_HERE_format,
+                          way_point_list[-1]]
 
-#Simulation of user choosing a station
+    # Result is given as a list of  GeoJSON Linestrings as returntype is
+    # "LineString"
+    way_point_lists_linestrings = get_route_distance_time_elevation(
+        way_point_list,
+        elevation_flag="false",
+        alternative_routes_value=3, return_type="linestring")
 
-closest_stations = json.loads(closest_stations)
-chosen_closest_station_idx = fetch_dummy_idx(0,len(closest_stations[
-                                                       'features']))
-closest_station = closest_stations['features'][chosen_closest_station_idx]
+    routes_feature_coll = {"type"    : "FeatureCollection",
+                           "features": way_point_lists_linestrings}
 
-print("closest_station:",closest_station)
-
-closest_station_HERE_format = geo_point_formatter_for_HERE_API(
-        closest_station['geometry']['coordinates'][1],
-        closest_station['geometry']['coordinates'][0])
-#New routes calculated by using the chosen station as a waypoint
-way_point_list = [way_point_list[0],closest_station_HERE_format,
-                  way_point_list[-1]]
-
-#Result is given as a list of  GeoJSON Linestrings as returntype is
-# "LineString"
-way_point_lists_linestrings = get_route_distance_time_elevation(way_point_list,
-                                         elevation_flag="false",
-                                                                alternative_routes_value=1,return_type="linestring")
-
-
+    routes_feature_coll = json.dumps(routes_feature_coll)
+    print(routes_feature_coll)
+    return(routes_feature_coll)
 
 print("Done")
-print("way_point_lists_linestrings:",
-                            way_point_lists_linestrings)
+
+
 
 
