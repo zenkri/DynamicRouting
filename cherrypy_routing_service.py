@@ -1,3 +1,4 @@
+import cherrypy
 from pprint import pprint
 from geojson import LineString
 from geojson import Point
@@ -10,29 +11,32 @@ import json
 # access keys for HERE API - routing
 here_app_id = "G9R3VhY5VRjtzpLUOUb8"
 here_app_code = "3N-P2kC4aILShL93eATfnA"
-#access keys for Open route service API - To find fuel stations
-open_route_service_auth_code= '5b3ce3597851110001cf6248620fe1f9983d4e8ea401c1ffa5b3580a'
+# access keys for Open route service API - To find fuel stations
+open_route_service_auth_code = \
+    '5b3ce3597851110001cf6248620fe1f9983d4e8ea401c1ffa5b3580a'
 
 
-#START OF CUSTOM FUNCTIONS________________________________________________
-#Dummy function to find the point at which station search needs to happen
+# START OF CUSTOM FUNCTIONS________________________________________________
+# Dummy function to find the point at which station search needs to happen
 # based on battery level or for user choosing closest station
-def fetch_dummy_idx(min_val,max_val):
-   return random.randrange(min_val, max_val)
+def fetch_dummy_idx(min_val, max_val):
+    return random.randrange(min_val, max_val)
 
-#Dummy function to find the the radius of the circle within which to search
+
+# Dummy function to find the the radius of the circle within which to search
 # for stations and the shifting of way-point to account for topographical
 # elevation- move towards lower elevation to save energy if required.
-def fetch_dummy_radius_and_way_point_shift(min_val=0,max_val=500):
-    dummy_radius = random.randrange(min_val,max_val)
+def fetch_dummy_radius_and_way_point_shift(min_val=0, max_val=500):
+    dummy_radius = random.randrange(min_val, max_val)
     dummy_way_point_shift = random.randrange(-1, +1)
-    return dummy_radius,dummy_way_point_shift
+    return dummy_radius, dummy_way_point_shift
 
-#Function to return a list of fuel stations in geoJSON format around a
+
+# Function to return a list of fuel stations in geoJSON format around a
 # specific point within a given radius which is given by the buffer_value in
 # metres.
 def get_stations_around_point(geojson_value,
-        buffer_value =2000):
+                              buffer_value=2000):
     """
     :param geojson_value: The point or line in GeoJSON from which the
     distance to the station is calculated
@@ -41,11 +45,11 @@ def get_stations_around_point(geojson_value,
     :return: a list of stations in GeoJSON format
     """
 
-    body = {"request" :"pois",
-            "geometry":{"geojson": geojson_value,"buffer": buffer_value},
-            "filters" :{"category_ids": [596]},"sortby": "distance"}
+    body = {"request" : "pois",
+            "geometry": {"geojson": geojson_value, "buffer": buffer_value},
+            "filters" : {"category_ids": [596]}, "sortby": "distance"}
 
-    #print("body:",body)
+    # print("body:",body)
 
     headers = {
         'Accept'       : 'application/json, application/geo+json, '
@@ -56,22 +60,23 @@ def get_stations_around_point(geojson_value,
                          headers=headers)
 
     print(call.status_code, call.reason)
-    #print(call.json())
+    # print(call.json())
     response_dump = json.dumps(call.json())
     response = json.loads(response_dump)
-    #print(response)
-    station_details="NO_DATA"
-    if(call.status_code!=200):
+    # print(response)
+    station_details = "NO_DATA"
+    if (call.status_code != 200):
         station_details = "NO_DATA"
     elif response['features']:
         station_details = json.dumps(response)
-    return(station_details)
+    return (station_details)
 
-#Function to return
+
+# Function to return
 def get_route_distance_time_elevation(way_points_list,
                                       elevation_flag="false",
                                       alternative_routes_value=1,
-            return_type="point"):
+                                      return_type="point"):
     """
     :param way_points_list: List of points starting with origin and ending
     with destination with waypoints in between for which the route is to be
@@ -88,28 +93,29 @@ def get_route_distance_time_elevation(way_points_list,
     base_url_calculate_route = "https://route.api.here.com/routing/7.2" \
                                "/calculateroute.json?app_id="
 
-    #Mode- balanced between fastest and least distance
-    #mode of transport - bicycle
+    # Mode- balanced between fastest and least distance
+    # mode of transport - bicycle
     mode = "balanced;bicycle"
 
-    #How many alternative routes to find
-    alternative_routes = "&alternatives="+str(alternative_routes_value)
+    # How many alternative routes to find
+    alternative_routes = "&alternatives=" + str(alternative_routes_value)
     waypoint_string = ""
     counter = 0
-    #Build the waypoint string to pass to the API
+    # Build the waypoint string to pass to the API
     for waypoint in way_points_list:
         waypoint_string += "&waypoint" + str(counter) + "=" + waypoint
         counter += 1
 
-    #Build the URL to fetch the route using the HERE API
-    url = base_url_calculate_route + here_app_id + "&app_code=" + here_app_code + \
+    # Build the URL to fetch the route using the HERE API
+    url = base_url_calculate_route + here_app_id + "&app_code=" + \
+          here_app_code + \
           waypoint_string + "&mode=" + mode \
           + "&routeattributes=sh,labels" + "&returnElevation=" + \
-          elevation_flag+alternative_routes
+          elevation_flag + alternative_routes
 
-    #print the URL for reference
+    # print the URL for reference
     pprint(url)
-    #Response from the API in JSON format
+    # Response from the API in JSON format
     resp = requests.get(url)
     way_points_linestring_list = []
     geojson_way_point_list_for_routes = []
@@ -120,11 +126,12 @@ def get_route_distance_time_elevation(way_points_list,
 
         response_json = resp.json()
         # pprint(response_json)
-        #Iterate through each available route individually to build
+        # Iterate through each available route individually to build
         # GeoJSON Linestrings for the route and GeoJSON Points for the
         # indiviual way points
         for alt_route_idx in range(len(response_json['response']['route'])):
-            print("#########ROUTE"+str(alt_route_idx+1)+"###############")
+            print(
+                "#########ROUTE" + str(alt_route_idx + 1) + "###############")
             shape_value_of_route = response_json['response']['route'][
                 alt_route_idx][
                 'shape']
@@ -136,17 +143,17 @@ def get_route_distance_time_elevation(way_points_list,
             way_point_list_for_geo = []
             geojson_way_point_list_for_route = []
 
-            #Break up each rout to create the GeoJSON points and also to
+            # Break up each rout to create the GeoJSON points and also to
             # calculate elevation gain and loss if required
             for i in shape_value_of_route:
                 point_split_string = [x.strip() for x in i.split(',')]
-                #GeoJSON needs Latitude and Longitude inverted
+                # GeoJSON needs Latitude and Longitude inverted
                 way_point_list_for_geo.append((float(point_split_string[1]),
                                                float(point_split_string[0])))
-                #Convert and Add each new GeoJSON point to the list of points
-                geojson_way_point_list_for_route.append(Point((float(point_split_string[1]),
-                                               float(point_split_string[0]))))
-
+                # Convert and Add each new GeoJSON point to the list of points
+                geojson_way_point_list_for_route.append(
+                    Point((float(point_split_string[1]),
+                           float(point_split_string[0]))))
 
                 if (len(point_split_string) > 2):
                     elevation = float(point_split_string[2])
@@ -163,25 +170,25 @@ def get_route_distance_time_elevation(way_points_list,
                     point_counter += 1
             overall_elevation_gain = sum(elevation_gain_array)
             overall_elevation_loss = sum(elevation_loss_array)
-            #Convert Linestring to GeoJSON point
+            # Convert Linestring to GeoJSON point
             way_points_linestring = LineString(way_point_list_for_geo)
-
 
         way_points_linestring_list.append(way_points_linestring)
         geojson_way_point_list_for_routes.append(
                 geojson_way_point_list_for_route)
-    if return_type=="point":
+    if return_type == "point":
 
-        return(geojson_way_point_list_for_routes)
-    elif return_type =="linestring":
-        return(way_points_linestring_list)
+        return (geojson_way_point_list_for_routes)
+    elif return_type == "linestring":
+        return (way_points_linestring_list)
 
 
-#Function to build the locations in the format required by HERE routing API
-def geo_point_formatter_for_HERE_API(lat,lon):
-    return ("geo!"+str(lat)+","+str(lon))
+# Function to build the locations in the format required by HERE routing API
+def geo_point_formatter_for_HERE_API(lat, lon):
+    return ("geo!" + str(lat) + "," + str(lon))
 
-#Constant values being passed temporarily to calculate routes-Needs to be
+
+# Constant values being passed temporarily to calculate routes-Needs to be
 # dynamic
 origin_lat = "52.500396"
 origin_lon = "13.407807"
@@ -194,8 +201,9 @@ dest_uphill_lon = "7.268998271621172"
 origin_uphill_ls = "[47.16757543377595,7.262282020247881]"
 dest_uphill_ls = "[47.17349788688307,7.268998271621172]"
 
-def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
-                     dest_lat="52.541439",dest_lon="13.421164",
+
+def routing_protocol(origin_lat="52.500396", origin_lon="13.407807",
+                     dest_lat="52.541439", dest_lon="13.421164",
                      battery_percent=40):
     way_point_list = [geo_point_formatter_for_HERE_API(origin_lat, origin_lon),
                       geo_point_formatter_for_HERE_API(dest_lat, dest_lon)]
@@ -225,23 +233,23 @@ def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
                                              way_point_list_length)
 
     search_radius, way_point_shift = fetch_dummy_radius_and_way_point_shift(
-        1800,
-        2000)
+            1800,
+            2000)
     ########################################################################
-
     new_idx = search_way_point_index + way_point_shift
 
     if (not (0 <= new_idx <= way_point_list_length)):
         new_idx = search_way_point_index
     closest_stations = "NO_DATA"
-    if(way_point_list_first_route==way_point_list_length):
-        closest_stations ="NOT NEEDED"
+    if (way_point_list_first_route == way_point_list_length):
+        closest_stations = "NOT NEEDED"
     while (closest_stations == "NO_DATA"):
         # Search for fuel stations around the selected waypoint
         closest_stations = get_stations_around_point(
                 geojson_value=way_point_list_first_route[new_idx],
                 buffer_value=search_radius)
-        # If NO_DATA stations available for current way point need to go to next point
+        # If NO_DATA stations available for current way point need to go to
+        # next point
         if (closest_stations == "NO_DATA"):
             print("NEED to move to next waypoint")
             if (new_idx > 0):
@@ -253,7 +261,7 @@ def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
             if (search_radius <= 1000):
                 search_radius = search_radius * 2
 
-    if(closest_stations!="NOT NEEDED"):
+    if (closest_stations != "NOT NEEDED"):
         # Simulation of user choosing a station
 
         closest_stations = json.loads(closest_stations)
@@ -262,7 +270,8 @@ def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
         # Function for user to choose fuel/recharge station
         chosen_closest_station_idx = fetch_dummy_idx(0, len(closest_stations[
                                                                 'features']))
-        closest_station = closest_stations['features'][chosen_closest_station_idx]
+        closest_station = closest_stations['features'][
+            chosen_closest_station_idx]
         ########################################################################
         # print("closest_station:",closest_station)
 
@@ -276,9 +285,9 @@ def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
         # Result is given as a list of  GeoJSON Linestrings as returntype is
         # "LineString"
         way_point_lists_linestrings = get_route_distance_time_elevation(
-            way_point_list,
-            elevation_flag="false",
-            alternative_routes_value=3, return_type="linestring")
+                way_point_list,
+                elevation_flag="false",
+                alternative_routes_value=3, return_type="linestring")
 
 
     else:
@@ -290,10 +299,44 @@ def routing_protocol(origin_lat="52.500396",origin_lon="13.407807",
 
     routes_feature_coll = json.dumps(routes_feature_coll)
     print(routes_feature_coll)
-    return(routes_feature_coll)
-
-print("Done")
+    return (routes_feature_coll)
 
 
+class webService(object):
+    exposed = True
+
+    def GET(self, origin_latitude="52.500396", origin_longitude="13.407807",
+            dest_latitude="52.541439", dest_longitude="13.421164",
+            battery_percentage=40):
+        return routing_protocol(origin_lat=origin_latitude,
+                                origin_lon=origin_longitude,
+                                dest_lat=dest_latitude,
+                                dest_lon=dest_longitude,
+                                battery_percent=battery_percentage)
+
+    def POST(self, *uri):
+        inputtext = json.loads(cherrypy.request.body.read())
+        operation = inputtext["username"]
+        nbrs = (inputtext["password"])
+
+    def PUT(self):
+        pass
+
+    def DELETE(self):
+        pass
 
 
+if __name__ == '__main__':
+    conf = {
+        '/': {
+            'request.dispatch' : cherrypy.dispatch.MethodDispatcher(),
+            'tools.sessions.on': True
+            }
+        }
+    cherrypy.config.update({
+        'server.socket_host': 'localhost',
+        'server.socket_port': 8080,
+        })
+    cherrypy.tree.mount(webService(), '/route', conf)
+    cherrypy.engine.start()
+    cherrypy.engine.block()
