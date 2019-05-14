@@ -1,0 +1,40 @@
+@import url(https://cdn.cobi.bike/static/fonts/UniSansRegular.css);
+@import url(https://cdn.cobi.bike/static/fonts/UniSansRegularItalic.css);
+
+body,
+html {
+  overflow-x: hidden;
+  font: 100 1.0rem/20px 'UniSansRegularItalic', Avenir, Heveltica, Arial, san-serif;
+  color: #000000;
+}
+
+#map {
+  height: 100vh;
+  width: 100vw;
+  z-index: -1;
+}
+
+#overlay {
+  width: 20vw;
+}
+
+.listItem {
+  font-size: 0.7em;
+}
+
+#marker_select {
+  font-size: 0.5em;
+}
+
+#spinner,
+#destination_text,
+#sufficient_power,
+#insufficient_power,
+#chevron-right,
+.leaflet-control-container {
+  display: none;
+}
+
+#overlay {
+  right: -44vh;
+}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html manifest="appcache.manifest">
+
+<head>
+  <meta charset="UTF-8" name="viewport" content="maximum-scale=1,initial-scale=1,user-scalable=no" />
+  <title>COBI Grid</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.1.4/css/uikit.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
+    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+    crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="uk-inline">
+    <div class="uk-background-cover" id="map"></div>
+    <div class="uk-overlay uk-overlay-default uk-position-medium uk-position-right" id="overlay">
+      <form id="init">
+        <div class="uk-margin">
+          <label class="uk-form-label" for="form-stacked-text">Destination:</label>
+          <p class="uk-text-small uk-margin-top" id="destination_text"></p>
+          <div class="uk-form-controls">
+            <input class="uk-input uk-margin uk-form-width-large uk-form-small" id="form-stacked-text" type="text"
+              placeholder="Type your destination.." autocomplete="off">
+            <ul class="uk-list uk-margin uk-list-divider" id='geocode-preview'>
+            </ul>
+            <span uk-icon="chevron-left" class="uk-position-center-left" id="chevron-left"></span>
+            <span uk-icon="chevron-right" class="uk-position-center-left" id="chevron-right"></span>
+            <button type=button class="uk-button uk-margin-top uk-width-large uk-button-default" id="marker_select">Choose with marker</button>
+            <div uk-spinner class="uk-position-center uk-margin-medium" id="spinner"></div>
+            <input class="uk-input uk-form-success uk-form-width-medium" id="sufficient_power" type="text" placeholder="Sufficient Power" value="Sufficient Power!">
+            <input class="uk-input uk-form-danger uk-form-width-medium uk-margin-bottom" id="insufficient_power" type="text" placeholder="inufficient Power" value="Insufficient Power!">
+
+          </div>
+          <button type=button class="uk-button uk-margin-bottom uk-position-bottom-center uk-button-primary" id="check_route">Check!</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.5.1/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.1.4/js/uikit.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.1.4/js/uikit-icons.min.js"></script>
+  <script src="https://cdn.cobi.bike/cobi.js/0.44.0/cobi.js"></script>
+  <script src="leaflet.rotatedMarker.js"></script>
+  <script src="utils.js"></script>
+  <script src="map.js"></script>
+  <script src="client.js"></script>
+</body>
+
+</html>
