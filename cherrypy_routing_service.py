@@ -230,24 +230,32 @@ def routing_protocol(origin_lat="52.500396", origin_lon="13.407807",
     # the radius to be used
     # Actual function would need, route with origin,dest and waypoints and
     # battery level to be passed
-    power_route_dict = NeededEnergyEstimator.estimateNeededPower([[float(origin_lat), float(origin_lon)],[float(dest_lat), float(dest_lon)]],
-                                             battery_percent)
+    power_route_dict = NeededEnergyEstimator.estimateNeededPower([[float(
+            origin_lon), float(origin_lat)],[float(dest_lon),
+                                             float(dest_lat)]],
+                                             float(battery_percent))
 
     search_radius, way_point_shift = fetch_dummy_radius_and_way_point_shift(
             1800,
             2000)
     ########################################################################
-    new_idx = search_way_point_index + way_point_shift
+    way_point_list_first_route = power_route_dict['pointList']
+    new_idx = power_route_dict['startSearchingIdx']
 
-    if (not (0 <= new_idx <= way_point_list_length)):
-        new_idx = search_way_point_index
     closest_stations = "NO_DATA"
-    if (way_point_list_first_route == way_point_list_length):
+    if (power_route_dict['isSufficient'] == True):
         closest_stations = "NOT NEEDED"
     while (closest_stations == "NO_DATA"):
         # Search for fuel stations around the selected waypoint
+        print("checking near:",Point((float(way_point_list_first_route[
+                                                new_idx][0]),
+               float(way_point_list_first_route[new_idx][1]))))
+        print("search_radius:",search_radius)
+
         closest_stations = get_stations_around_point(
-                geojson_value=way_point_list_first_route[new_idx],
+                geojson_value= Point((float(way_point_list_first_route[
+                                                new_idx][0]),
+               float(way_point_list_first_route[new_idx][1]))),
                 buffer_value=search_radius)
         # If NO_DATA stations available for current way point need to go to
         # next point
@@ -258,7 +266,8 @@ def routing_protocol(origin_lat="52.500396", origin_lon="13.407807",
             else:
                 print("UNABLE TO FIND STATION en ROUTE AND TRIP NOT POSSIBLE "
                       "WITHOUT CHARGING")
-                sys.exit(1)
+                break
+
             if (search_radius <= 1000):
                 search_radius = search_radius * 2
 
@@ -286,13 +295,17 @@ def routing_protocol(origin_lat="52.500396", origin_lon="13.407807",
         # Result is given as a list of  GeoJSON Linestrings as returntype is
         # "LineString"
         way_point_lists_linestrings = get_route_distance_time_elevation(
-                way_point_list,
+                way_point_list_new,
                 elevation_flag="false",
                 alternative_routes_value=3, return_type="linestring")
 
 
     else:
-        closest_station = "NOT USED AS CHARGE WAS SUFFICIENT"
+        closest_station = "NOT USED AS CHARGE WAS SUFFICIENT or UNABLE TO FIND STATION en ROUTE AND TRIP NOT POSSIBLE WITHOUT CHARGING"
+        way_point_lists_linestrings = get_route_distance_time_elevation(
+                way_point_list,
+                elevation_flag="false",
+                alternative_routes_value=3, return_type="linestring")
 
     routes_feature_coll = {"type"           : "FeatureCollection",
                            "closest_station": closest_station,

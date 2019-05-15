@@ -82,6 +82,28 @@ def makeRequest(locations):
 
     return call.json()
 
+def makeRequestWithouElev(locations):
+    import requests
+
+    body = {"coordinates": locations, "elevation": "false", "extra_info": [
+        "surface"]}
+
+    headers = {
+        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
+        'Authorization': '5b3ce3597851110001cf624826dff6fca2c74f82af5b82773385f154'
+    }
+
+    try:
+        call = requests.post('https://api.openrouteservice.org/v2/directions/cycling-electric/geojson', json=body,
+                             headers=headers)
+    except:
+        print('Altitude request failed!')
+        return -1
+
+
+    return call.json()
+
+
 
 def getDescendancePortion(path):
     import numpy as np
@@ -252,13 +274,18 @@ def estimateNeededPower(track, battery_level):
 
     print(total_loss)
 
+    respNoElev = makeRequestWithouElev(track)
+
+    # get all the path points
+    path_points_without_elev = respNoElev['features'][0]['geometry']['coordinates']
+
     if total_loss < max(0.001, battery_level - 0.05) * battery_capacity:
         return_dict['isSufficient'] = True
-        return_dict['pointList'] = path_points
+        return_dict['pointList'] = path_points_without_elev
 
     else:
         return_dict['isSufficient'] = False
-        return_dict['pointList'] = path_points
+        return_dict['pointList'] = path_points_without_elev
         return_dict['startSearchingIdx'] = getStartSearchIdx(path_points, battery_level, mu_roll)
 
 
@@ -269,5 +296,6 @@ import json
 import io
 
 
-print(estimateNeededPower([[8.683319, 49.429287], [8.601608, 49.370302]], 0.22))
+print(estimateNeededPower([[8.683319, 49.429287], [8.601608, 49.370302]],
+                          0.12))
 
