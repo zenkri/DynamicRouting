@@ -6,6 +6,8 @@ bike_weight = 20.0
 
 earth_acceleration = 9.81
 
+battery_capacity = 400
+
 total_weight = cyclist_weight + bike_weight
 
 material_dict = dict([(0, 'Unknown'), (1, 'Paved'), (2, 'Unpaved'), (3, 'Asphalt'), (4, 'Concrete'),
@@ -15,6 +17,12 @@ material_dict = dict([(0, 'Unknown'), (1, 'Paved'), (2, 'Unpaved'), (3, 'Asphalt
 
 roll_coefficients = dict([('Asphalt', 0.004), ('Concrete', 0.002), ('Wood', 0.001), ('Woodchips', 0.001), ('Paved', 0.008),
                           ('Grass', 0.007), ('Gravel', 0.006), ('Sand', 0.03), ('Unknown', 0.008)])
+
+# define some coefficient for the air drag
+c_w = 0.5
+A = 0.45
+rho = 1.2041
+average_speed = 20 / 3.6
 
 #--------------------Get elevation data------------------------------
 
@@ -67,11 +75,25 @@ def makeRequest(locations):
     try:
         call = requests.post('https://api.openrouteservice.org/v2/directions/cycling-electric/geojson', json=body,
                              headers=headers)
-
     except:
         print('Altitude request failed!')
+        return -1
+
 
     return call.json()
+
+
+def getDescendancePortion(path):
+    import numpy as np
+
+    altitudePoints = getAltitudePoints(path)
+
+    # calculate the slope
+    slope = np.array(differentiate(altitudePoints))
+
+    descendancePortion = np.sum(slope < 0) / len(slope)
+
+    return descendancePortion
 
 
 def getElevation(dix):
@@ -97,21 +119,118 @@ def differentiate(vec):
     return diffVec
 
 
+def getAltitudePoints(pointsList):
+    import requests
+
+    body = {"format_in": "polyline", "format_out": "polyline",
+            "geometry": pointsList}
+
+    headers = {
+        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
+        'Authorization': '5b3ce3597851110001cf624826dff6fca2c74f82af5b82773385f154'
+    }
+    call = requests.post('https://api.openrouteservice.org/elevation/line', json=body, headers=headers).json()
+
+    geometryList = call['geometry']
+
+    altitudeList = []
+
+    for geometryElement in geometryList:
+        altitudeList.append(geometryElement[2])
+
+    return altitudeList
+
+
+def getDistance(p1, p2):
+
+    import math
+
+    return math.sqrt(math.pow(p1[0] - p2[0], 2) + math.pow(p1[1] - p2[1], 2))
+
+
+def getStartSearchIdx(pointsList, remaining_power, mu):
+
+    import numpy as np
+    import utm
+
+
+    # transform geo. locations to the Cartesian coordinate system
+    xy = []
+
+    for geoLoc in pointsList:
+        xy.append(utm.from_latlon(geoLoc[1], geoLoc[0])[0:2])
+
+    # get altitude loss occurance profile
+    altitudeProfile = getAltitudePoints(pointsList)
+
+    # calculate the slope
+    slope = differentiate(altitudeProfile)
+
+    # create a profile
+    ## create an array from altitudeProfile
+    lossOccuranceProfile = np.array(slope)
+
+    ## binarize the lossOccuranceProfile
+    lossOccuranceProfile[np.where(lossOccuranceProfile < 0)] = 0
+    lossOccuranceProfile[np.where(lossOccuranceProfile > 0)] = 1
+
+    # transform xy to traveled distances
+    distanceList = []
+    distanceList.append(0)
+
+    for index in range(1, len(xy)):
+        distanceList.append(distanceList[index - 1] + lossOccuranceProfile[index] * getDistance(xy[index], xy[index - 1]))
+
+    # transform distanceList to an array
+    distanceProfile = np.array(distanceList)
+
+    # transform slope list to array
+    slope_array = np.array(slope)
+
+    # delete negative slopes
+    slope_array[np.where(slope_array < 0)] = 0
+
+    # create a slope array profile
+    for idx in range(1, len(slope)):
+        slope_array[idx] = slope_array[idx] + slope_array[idx - 1]
+
+    # calculate potential energy profile
+    E_potProfile = total_weight * earth_acceleration * slope_array
+
+    #calculate the friction profile
+    rollFrictionProfile = mu * total_weight * earth_acceleration * distanceProfile
+
+    # calculate the air drag profile
+    airDragProfile = 0.5 * c_w * A * rho * average_speed**2 * distanceProfile
+
+    # calculate total loss profile
+    lossProfile = joule2Wh(E_potProfile + rollFrictionProfile + airDragProfile)
+
+    availablePower = max(0.001, (remaining_power - 0.05) * battery_capacity)
+
+    return np.where((availablePower - lossProfile) < 0)[0][0] - 1
+
+
 def joule2Wh(joule_energy):
 
     return joule_energy / 3600.0
 
-# as input we expect a list of tuples, which includes equidistant geo coordinates of the path
 
+def estimateNeededPower(track, battery_level):
 
-def estimateNeededPower(track):
+    # define return dictionary
+    return_dict = dict([('isSufficient', False), ('pointList', [[]]), ('startSearchingIdx', -1)])
 
     resp = makeRequest(track)
 
-    ascendent_elevation = getElevation(resp)
+    # get all the path points
+    path_points = resp['features'][0]['geometry']['coordinates']
+
+    # get total ascendant elevation
+    ascendant_elevation = getElevation(resp)
 
     # calculate the needed potential energy
-    potential_energy = joule2Wh(total_weight * earth_acceleration * ascendent_elevation)
+    potential_energy = joule2Wh(total_weight * earth_acceleration * ascendant_elevation)
 
     # determine rolling friction coefficient
     mu_roll = get_mu_roll(resp)
@@ -119,24 +238,36 @@ def estimateNeededPower(track):
     # determine the total distance
     distance = resp['features'][0]['properties']['summary']['distance']
 
-    #calculate rolling friction loss
-    friction_loss = joule2Wh(mu_roll * total_weight * earth_acceleration * distance)
+    # get portion of descendant track
+    descentionPortion = getDescendancePortion(path_points)
 
-    # define some coefficient for the air drag
-    c_w = 0.5
-    A = 0.45
-    rho = 1.2041
-    average_speed = 20 / 3.6
+    #calculate rolling friction loss
+    friction_loss = joule2Wh(mu_roll * total_weight * earth_acceleration * distance * (1.0 - descentionPortion))
 
     # calculate the air drag
-    drag_loss = joule2Wh(0.5 * c_w * A * rho * average_speed**2 * distance)
+    drag_loss = joule2Wh(0.5 * c_w * A * rho * average_speed**2 * distance * (1.0 - descentionPortion))
 
-    return potential_energy + friction_loss + drag_loss
+    # total loss calculation
+    total_loss = potential_energy + friction_loss + drag_loss
+
+    print(total_loss)
+
+    if total_loss < max(0.001, battery_level - 0.05) * battery_capacity:
+        return_dict['isSufficient'] = True
+        return_dict['pointList'] = path_points
+
+    else:
+        return_dict['isSufficient'] = False
+        return_dict['pointList'] = path_points
+        return_dict['startSearchingIdx'] = getStartSearchIdx(path_points, battery_level, mu_roll)
+
+
+    return return_dict
 
 
 import json
 import io
 
 
-print(estimateNeededPower([[8.683319, 49.429287],[8.601608, 49.370302]]))
+print(estimateNeededPower([[8.683319, 49.429287], [8.601608, 49.370302]], 0.22))
 
