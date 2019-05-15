@@ -6,6 +6,7 @@ import requests
 import random
 import sys
 import json
+import NeededEnergyEstimator
 
 """CONSTANTS-------------------------------------"""
 # access keys for HERE API - routing
@@ -229,8 +230,8 @@ def routing_protocol(origin_lat="52.500396", origin_lon="13.407807",
     # the radius to be used
     # Actual function would need, route with origin,dest and waypoints and
     # battery level to be passed
-    search_way_point_index = fetch_dummy_idx(way_point_list_length - 1,
-                                             way_point_list_length)
+    power_route_dict = NeededEnergyEstimator.estimateNeededPower([[float(origin_lat), float(origin_lon)],[float(dest_lat), float(dest_lon)]],
+                                             battery_percent)
 
     search_radius, way_point_shift = fetch_dummy_radius_and_way_point_shift(
             1800,
