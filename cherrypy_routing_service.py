@@ -301,7 +301,8 @@ def routing_protocol(origin_lat="52.500396", origin_lon="13.407807",
 
 
     else:
-        closest_station = "NOT USED AS CHARGE WAS SUFFICIENT or UNABLE TO FIND STATION en ROUTE AND TRIP NOT POSSIBLE WITHOUT CHARGING"
+        print("NOT USED AS CHARGE WAS SUFFICIENT or UNABLE TO FIND STATION en ROUTE AND TRIP NOT POSSIBLE WITHOUT CHARGING")
+        closest_station = "NA"
         way_point_lists_linestrings = get_route_distance_time_elevation(
                 way_point_list,
                 elevation_flag="false",
