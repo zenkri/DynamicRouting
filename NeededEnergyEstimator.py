@@ -296,6 +296,6 @@ import json
 import io
 
 
-print(estimateNeededPower([[8.683319, 49.429287], [8.601608, 49.370302]],
-                          0.12))
+# print(estimateNeededPower([[8.683319, 49.429287], [8.601608, 49.370302]],
+#                           0.12))
 
